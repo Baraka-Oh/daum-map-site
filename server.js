@@ -89,8 +89,12 @@ async function getPnu(jibunAddress) {
       },
     });
     const pnu = data?.response?.refined?.structure?.level4LC;
+    if (!pnu || pnu.length !== 19) {
+      console.error('[VWorld getPnu] PNU 없음:', JSON.stringify(data));
+    }
     return pnu && pnu.length === 19 ? pnu : null;
   } catch (err) {
+    console.error('[VWorld getPnu] 요청 실패:', err.response?.data || err.message);
     return null;
   }
 }
