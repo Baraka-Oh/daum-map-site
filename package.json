@@ -1,0 +1,17 @@
+{
+  "name": "naver-map-site",
+  "version": "1.0.0",
+  "description": "주소/지번 검색 후 네이버 지도에 표시하는 사이트",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^2.4.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

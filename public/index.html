@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>카카오맵 주소 검색</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="panel">
+      <h1>주소/지번 지도 검색</h1>
+      <p class="hint">도로명주소 또는 지번주소를 입력하고 검색하세요. 여러 개를 한 번에 검색할 수 있습니다.</p>
+
+      <div id="address-list" class="address-list">
+        <div class="address-row">
+          <input type="text" class="address-input" placeholder="예) 서울특별시 중구 세종대로 110 또는 태평로1가 31" />
+          <button type="button" class="remove-btn" title="삭제">✕</button>
+        </div>
+      </div>
+
+      <div class="panel-buttons">
+        <button type="button" id="add-row-btn" class="btn secondary">+ 주소 추가</button>
+        <button type="button" id="search-btn" class="btn primary">검색</button>
+      </div>
+
+      <button type="button" id="upload-btn" class="btn secondary summary-toggle">📁 엑셀 업로드</button>
+      <input type="file" id="upload-input" accept=".xlsx,.xls" hidden />
+
+      <button type="button" id="open-summary-btn" class="btn secondary summary-toggle" hidden>📋 통합창 보기</button>
+
+      <ul id="result-list" class="result-list"></ul>
+    </aside>
+
+    <main class="map-wrap">
+      <div id="map"></div>
+    </main>
+  </div>
+
+  <div id="summary-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>검색 결과 통합</h2>
+        <button type="button" id="close-summary-btn" class="modal-close" title="닫기">✕</button>
+      </div>
+      <div class="modal-body">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>주소</th>
+              <th>용도지역</th>
+              <th>면적(㎡)</th>
+              <th>개별공시지가(원/㎡)</th>
+            </tr>
+          </thead>
+          <tbody id="summary-tbody"></tbody>
+          <tfoot>
+            <tr class="summary-total">
+              <td colspan="2">합계</td>
+              <td id="summary-total-area">-</td>
+              <td>-</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="download-summary-btn" class="btn primary">⬇ 엑셀 다운로드</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
