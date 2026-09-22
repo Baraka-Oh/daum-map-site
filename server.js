@@ -19,19 +19,21 @@ const VWORLD_KEY = process.env.VWORLD_KEY;
 
 // VWorld는 기본 axios User-Agent/헤더로 오는 요청을 막는 경우가 있어 브라우저처럼 위장
 const vworldClient = axios.create({
-  timeout: 8000,
+  timeout: 15000,
   headers: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     Accept: 'application/json, text/plain, */*',
   },
 });
 
-async function vworldGet(url, params, retries = 1) {
+async function vworldGet(url, params, retries = 3) {
   try {
     return await vworldClient.get(url, { params });
   } catch (err) {
     if (retries > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      const attempt = 4 - retries;
+      console.error(`[VWorld] 요청 실패(${attempt}차 재시도 예정):`, err.response?.status || err.message);
+      await new Promise((resolve) => setTimeout(resolve, 800 * attempt));
       return vworldGet(url, params, retries - 1);
     }
     throw err;
