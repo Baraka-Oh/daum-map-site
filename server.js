@@ -16,6 +16,27 @@ const KAKAO_JS_KEY = process.env.KAKAO_JS_KEY;
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 // 필지 경계/토지특성정보 조회(VWorld)용
 const VWORLD_KEY = process.env.VWORLD_KEY;
+
+// VWorld는 기본 axios User-Agent/헤더로 오는 요청을 막는 경우가 있어 브라우저처럼 위장
+const vworldClient = axios.create({
+  timeout: 8000,
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    Accept: 'application/json, text/plain, */*',
+  },
+});
+
+async function vworldGet(url, params, retries = 1) {
+  try {
+    return await vworldClient.get(url, { params });
+  } catch (err) {
+    if (retries > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return vworldGet(url, params, retries - 1);
+    }
+    throw err;
+  }
+}
 const VWORLD_DOMAIN = process.env.VWORLD_DOMAIN || 'localhost:3000';
 
 if (!KAKAO_JS_KEY || !KAKAO_REST_API_KEY) {
@@ -74,19 +95,17 @@ async function geocodeAddress(query) {
 async function getPnu(jibunAddress) {
   if (!jibunAddress || !VWORLD_KEY) return null;
   try {
-    const { data } = await axios.get('https://api.vworld.kr/req/address', {
-      params: {
-        service: 'address',
-        request: 'getcoord',
-        version: '2.0',
-        crs: 'epsg:4326',
-        address: jibunAddress,
-        refine: true,
-        simple: false,
-        format: 'json',
-        type: 'parcel',
-        key: VWORLD_KEY,
-      },
+    const { data } = await vworldGet('https://api.vworld.kr/req/address', {
+      service: 'address',
+      request: 'getcoord',
+      version: '2.0',
+      crs: 'epsg:4326',
+      address: jibunAddress,
+      refine: true,
+      simple: false,
+      format: 'json',
+      type: 'parcel',
+      key: VWORLD_KEY,
     });
     const pnu = data?.response?.refined?.structure?.level4LC;
     if (!pnu || pnu.length !== 19) {
@@ -102,22 +121,21 @@ async function getPnu(jibunAddress) {
 // 필지 경계(연속지적도) 폴리곤 조회
 async function getParcelPolygon(pnu) {
   try {
-    const { data } = await axios.get('https://api.vworld.kr/req/data', {
-      params: {
-        service: 'data',
-        request: 'GetFeature',
-        format: 'json',
-        key: VWORLD_KEY,
-        domain: VWORLD_DOMAIN,
-        data: 'LP_PA_CBND_BUBUN',
-        attrFilter: `pnu:=:${pnu}`,
-        crs: 'EPSG:4326',
-        geometry: true,
-      },
+    const { data } = await vworldGet('https://api.vworld.kr/req/data', {
+      service: 'data',
+      request: 'GetFeature',
+      format: 'json',
+      key: VWORLD_KEY,
+      domain: VWORLD_DOMAIN,
+      data: 'LP_PA_CBND_BUBUN',
+      attrFilter: `pnu:=:${pnu}`,
+      crs: 'EPSG:4326',
+      geometry: true,
     });
     const feature = data?.response?.result?.featureCollection?.features?.[0];
     return feature ? feature.geometry : null;
   } catch (err) {
+    console.error('[VWorld getParcelPolygon] 요청 실패:', err.response?.data || err.message);
     return null;
   }
 }
@@ -127,13 +145,13 @@ async function getLandCharacteristics(pnu) {
   const thisYear = new Date().getFullYear();
   for (let year = thisYear; year >= thisYear - 3; year -= 1) {
     try {
-      const { data } = await axios.get('https://api.vworld.kr/ned/data/getLandCharacteristics', {
-        params: { format: 'json', key: VWORLD_KEY, domain: VWORLD_DOMAIN, pnu, stdrYear: year },
+      const { data } = await vworldGet('https://api.vworld.kr/ned/data/getLandCharacteristics', {
+        format: 'json', key: VWORLD_KEY, domain: VWORLD_DOMAIN, pnu, stdrYear: year,
       });
       const field = data?.landCharacteristicss?.field?.[0];
       if (field) return field;
     } catch (err) {
-      // 해당 연도 데이터 없으면 이전 연도로 재시도
+      console.error('[VWorld getLandCharacteristics]', year, '요청 실패:', err.response?.data || err.message);
     }
   }
   return null;
@@ -142,11 +160,12 @@ async function getLandCharacteristics(pnu) {
 // 토지(임야)대장 - 소유구분/지목/면적 조회
 async function getLandOwnership(pnu) {
   try {
-    const { data } = await axios.get('https://api.vworld.kr/ned/data/ladfrlList', {
-      params: { format: 'json', key: VWORLD_KEY, domain: VWORLD_DOMAIN, pnu },
+    const { data } = await vworldGet('https://api.vworld.kr/ned/data/ladfrlList', {
+      format: 'json', key: VWORLD_KEY, domain: VWORLD_DOMAIN, pnu,
     });
     return data?.ladfrlVOList?.ladfrlVOList?.[0] || null;
   } catch (err) {
+    console.error('[VWorld getLandOwnership] 요청 실패:', err.response?.data || err.message);
     return null;
   }
 }
@@ -154,8 +173,8 @@ async function getLandOwnership(pnu) {
 // 토지이용계획(용도지역/지구/구역 목록) 조회
 async function getLandUsePlans(pnu) {
   try {
-    const { data } = await axios.get('https://api.vworld.kr/ned/data/getLandUseAttr', {
-      params: { format: 'json', key: VWORLD_KEY, domain: VWORLD_DOMAIN, pnu, numOfRows: 50 },
+    const { data } = await vworldGet('https://api.vworld.kr/ned/data/getLandUseAttr', {
+      format: 'json', key: VWORLD_KEY, domain: VWORLD_DOMAIN, pnu, numOfRows: 50,
     });
     const list = data?.landUses?.field || [];
     return list.map((item) => ({
@@ -163,6 +182,7 @@ async function getLandUsePlans(pnu) {
       relation: item.cnflcAtNm,
     }));
   } catch (err) {
+    console.error('[VWorld getLandUsePlans] 요청 실패:', err.response?.data || err.message);
     return [];
   }
 }
